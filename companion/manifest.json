@@ -1,0 +1,26 @@
+{
+	"id": "kiloview-decoder",
+	"name": "Kiloview Decoder",
+	"shortname": "KV-Decoder",
+	"description": "Module to control Kiloview Dxx decoders running decoder-hi3536 firmware (HTTP API on port 99)",
+	"version": "1.0.0",
+	"license": "MIT",
+	"repository": "git+https://github.com/kiloview-059/companion-module-kiloview-decoder.git",
+	"bugs": "https://github.com/kiloview-059/companion-module-kiloview-decoder/issues",
+	"maintainers": [
+		{
+			"name": "Kiloview",
+			"email": "091@kiloview.com"
+		}
+	],
+	"legacyIds": [],
+	"runtime": {
+		"type": "node18",
+		"api": "nodejs-ipc",
+		"apiVersion": "0.0.0",
+		"entrypoint": "../index.js"
+	},
+	"manufacturer": "Kiloview",
+	"products": ["D350", "D260", "RD350", "RD260"],
+	"keywords": ["Kiloview", "Decoder", "NDI", "Multiview", "Video", "D350"]
+}

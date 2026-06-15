@@ -9,7 +9,7 @@ module.exports = {
 				width: 12,
 				label: 'Information',
 				value:
-					'Controls Kiloview Dxx decoders (decoder-hi3536 firmware). API base: http://&lt;ip&gt;:99/api — see RegistHttpsRoute.cpp in decoder-hi3536.',
+					'Controls Kiloview Dxx decoders (decoder-hi3536 firmware). API base: http://&lt;ip&gt;:80/api — see RegistHttpsRoute.cpp in decoder-hi3536.',
 			},
 			{
 				type: 'static-text',
@@ -39,7 +39,7 @@ module.exports = {
 				id: 'port',
 				label: 'Port',
 				width: 3,
-				default: '99',
+				default: '80',
 				regex: Regex.PORT,
 			},
 			{

@@ -1,12 +1,12 @@
 # Kiloview Decoder
 
-This module controls Kiloview Dxx decoders with **decoder-hi3536** firmware via its native HTTP API (`/api/*` on port **99**).
+This module controls Kiloview Dxx decoders with **decoder-hi3536** firmware via its native HTTP API (`/api/*` on port **80**).
 
 ## Configuration
 
 - **Device IP / Host** — IP address of the decoder
-- **Protocol** — HTTP (decoder-hi3536 listens on port 99)
-- **Port** — Default **99** (`HTTP_PORT` in decoder-hi3536)
+- **Protocol** — HTTP (decoder-hi3536 listens on port 80)
+- **Port** — Default **80**
 - **Use Authentication** — Enable/disable login credentials
 - **Username / Password** — Device login credentials (default: admin/admin)
 - **Enable Polling** — Required for feedbacks and variables to update automatically
@@ -77,6 +77,6 @@ This module controls Kiloview Dxx decoders with **decoder-hi3536** firmware via 
 
 Implemented against **decoder-hi3536** (`RegistHttpsRoute.cpp`). Base URL:
 
-`http://<ip>:99/api/`
+`http://<ip>:80/api/`
 
 See also `decoder-hi3536/api/Dxx解码器Api文档.md`.

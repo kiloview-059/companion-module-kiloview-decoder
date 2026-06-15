@@ -2,7 +2,7 @@
 	"id": "kiloview-decoder",
 	"name": "Kiloview Decoder",
 	"shortname": "KV-Decoder",
-	"description": "Module to control Kiloview Dxx decoders running decoder-hi3536 firmware (HTTP API on port 99)",
+	"description": "Module to control Kiloview Dxx decoders running decoder-hi3536 firmware (HTTP API on port 80)",
 	"version": "1.0.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/kiloview-059/companion-module-kiloview-decoder.git",

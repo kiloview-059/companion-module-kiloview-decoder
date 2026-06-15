@@ -5,7 +5,7 @@
  *   multiview/src/interface/RegistHttpsRoute.cpp
  *   multiview/res/static/js/app.js (api section)
  *
- * Base URL: http://<host>:<port>/api  (default port 99, see definition.h HTTP_PORT)
+ * Base URL: http://<host>:<port>/api  (default port 80)
  */
 const http = require('http')
 const https = require('https')
@@ -14,7 +14,7 @@ const https = require('https')
 const ERR_USER_TOKEN_INVALID = '2'
 
 class KiloviewDecoder {
-	constructor(owner, ip, username, password, protocol = 'http', port = 99, timeout = 5000) {
+	constructor(owner, ip, username, password, protocol = 'http', port = 80, timeout = 5000) {
 		this.owner = owner
 		this.connection_info = { ip, username, password, protocol, port }
 		this.baseURL = `${protocol}://${ip}:${port}/api`

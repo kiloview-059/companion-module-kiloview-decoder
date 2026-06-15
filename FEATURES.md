@@ -1,6 +1,6 @@
 # Kiloview Decoder Companion 模块功能说明
 
-> 模块：`companion-module-kiloview-decoder` v1.0.0  
+> 模块：`companion-module-kiloview-decoder` v1.0.1  
 > 适用设备：D350、D260、RD350、RD260（decoder-hi3536 固件）  
 > API 基址：`http://<设备IP>:99/api/`  
 > 参考：`decoder-hi3536/multiview/src/interface/RegistHttpsRoute.cpp`、`decoder-hi3536/api/Dxx解码器Api文档.md`
@@ -380,4 +380,4 @@
 
 ---
 
-*文档生成依据模块 v1.0.0 源码与 decoder-hi3536 固件路由，如有固件升级导致 API 变更，以设备实际路由为准。*
+*文档生成依据模块 v1.0.1 源码与 decoder-hi3536 固件路由，如有固件升级导致 API 变更，以设备实际路由为准。*

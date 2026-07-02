@@ -293,6 +293,244 @@ module.exports = {
 			},
 		}
 
+		actions.addSourceStream = {
+			name: 'Add Source Stream',
+			description: 'Add a manual network stream (RTSP, RTMP, HTTP, etc.) to a source group',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Source Group',
+					id: 'group_id',
+					default: self.CHOICES_GROUPS[0]?.id || 'null',
+					choices: self.CHOICES_GROUPS,
+				},
+				{
+					type: 'dropdown',
+					label: 'Stream Type',
+					id: 'type',
+					default: 'rtsp',
+					choices: self.CHOICES_SOURCE_TYPES,
+				},
+				{
+					type: 'textinput',
+					label: 'Name',
+					id: 'name',
+					default: '',
+				},
+				{
+					type: 'textinput',
+					label: 'URL',
+					id: 'url',
+					default: '',
+				},
+				{
+					type: 'textinput',
+					label: 'Username (optional)',
+					id: 'user',
+					default: '',
+				},
+				{
+					type: 'textinput',
+					label: 'Password (optional)',
+					id: 'password',
+					default: '',
+				},
+				{
+					type: 'dropdown',
+					label: 'RTSP Transport',
+					id: 'trans_mode',
+					default: 'tcp',
+					choices: [
+						{ id: 'tcp', label: 'TCP' },
+						{ id: 'udp', label: 'UDP' },
+					],
+				},
+			],
+			callback: async (action) => {
+				const { group_id, type, name, url, user, password, trans_mode } = action.options
+				if (!group_id || group_id === 'null') {
+					self.log('warn', 'No source group selected')
+					return
+				}
+				if (!name || !url) {
+					self.log('warn', 'Name and URL are required')
+					return
+				}
+				const params = self.DEVICE.buildAddStreamParams(group_id, {
+					type,
+					name,
+					url,
+					user,
+					password,
+					trans_mode,
+				})
+				await self.DEVICE.addSourceStream(params)
+				await self.checkSources()
+			},
+		}
+
+		actions.addNdiSource = {
+			name: 'Add NDI Source',
+			description: 'Add an NDI stream to a source group',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Source Group',
+					id: 'group_id',
+					default: self.CHOICES_GROUPS[0]?.id || 'null',
+					choices: self.CHOICES_GROUPS,
+				},
+				{
+					type: 'textinput',
+					label: 'NDI Name',
+					id: 'ndi_name',
+					default: '',
+				},
+				{
+					type: 'textinput',
+					label: 'URL (ip:port)',
+					id: 'url',
+					default: '',
+				},
+				{
+					type: 'dropdown',
+					label: 'Channel',
+					id: 'channel',
+					default: 'HB',
+					choices: [
+						{ id: 'HB', label: 'HB' },
+						{ id: 'HX', label: 'HX' },
+					],
+				},
+				{
+					type: 'textinput',
+					label: 'NDI Group',
+					id: 'group_name',
+					default: 'public',
+				},
+			],
+			callback: async (action) => {
+				const { group_id, ndi_name, url, channel, group_name } = action.options
+				if (!group_id || group_id === 'null') {
+					self.log('warn', 'No source group selected')
+					return
+				}
+				if (!ndi_name || !url) {
+					self.log('warn', 'NDI name and URL are required')
+					return
+				}
+				const params = self.DEVICE.buildAddNdiStreamParams(group_id, {
+					ndi_name,
+					url,
+					channel,
+					group_name,
+				})
+				await self.DEVICE.addSourceStream(params)
+				await self.checkSources()
+			},
+		}
+
+		actions.modifySourceStream = {
+			name: 'Modify Source Stream',
+			description: 'Update an existing stream (leave fields blank to keep current values)',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Stream',
+					id: 'stream_id',
+					default: self.CHOICES_STREAMS[0]?.id || 'null',
+					choices: self.CHOICES_STREAMS,
+				},
+				{
+					type: 'textinput',
+					label: 'Name (optional)',
+					id: 'name',
+					default: '',
+				},
+				{
+					type: 'textinput',
+					label: 'URL (optional)',
+					id: 'url',
+					default: '',
+				},
+				{
+					type: 'textinput',
+					label: 'Username (optional)',
+					id: 'user',
+					default: '',
+				},
+				{
+					type: 'textinput',
+					label: 'Password (optional)',
+					id: 'password',
+					default: '',
+				},
+				{
+					type: 'dropdown',
+					label: 'RTSP Transport (optional)',
+					id: 'trans_mode',
+					default: '',
+					choices: [
+						{ id: '', label: 'Keep current' },
+						{ id: 'tcp', label: 'TCP' },
+						{ id: 'udp', label: 'UDP' },
+					],
+				},
+			],
+			callback: async (action) => {
+				const { stream_id, name, url, user, password, trans_mode } = action.options
+				if (!stream_id || stream_id === 'null') {
+					self.log('warn', 'No stream selected')
+					return
+				}
+				const stream = self.STATE.sources.find((s) => s.id === stream_id)
+				if (!stream) {
+					self.log('warn', 'Stream not found in cached source list; refresh sources first')
+					return
+				}
+				const params = self.DEVICE.buildModifyStreamParams(stream, {
+					name,
+					url,
+					user,
+					password,
+					trans_mode,
+				})
+				await self.DEVICE.modifySourceStream(params)
+				await self.checkSources()
+			},
+		}
+
+		actions.removeSourceStream = {
+			name: 'Remove Source Stream',
+			description: 'Delete a stream from a source group',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Stream',
+					id: 'stream_id',
+					default: self.CHOICES_STREAMS[0]?.id || 'null',
+					choices: self.CHOICES_STREAMS,
+				},
+			],
+			callback: async (action) => {
+				const { stream_id } = action.options
+				if (!stream_id || stream_id === 'null') {
+					self.log('warn', 'No stream selected')
+					return
+				}
+				const stream = self.STATE.sources.find((s) => s.id === stream_id)
+				if (!stream?.group_id) {
+					self.log('warn', 'Stream group not found; refresh sources first')
+					return
+				}
+				await self.DEVICE.removeSourceStream({
+					group_id: stream.group_id,
+					stream_id: stream.id,
+				})
+				await self.checkSources()
+			},
+		}
+
 		actions.addNdiManualIp = {
 			name: 'NDI: Add Manual IP',
 			description: 'Add a manual NDI discovery IP and group',

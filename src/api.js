@@ -306,23 +306,32 @@ module.exports = {
 		self._sourcesPollInFlight = true
 
 		let streamsArray = [{ id: 'null', label: '- No streams available -' }]
+		let groupsArray = [{ id: 'null', label: '- No groups available -' }]
 
 		try {
 			try {
 				const groups = await self.DEVICE.getSourceGroups()
 				const streams = []
+				const groupChoices = []
 
 				if (Array.isArray(groups?.data)) {
+					self.STATE.source_groups = groups.data
 					groups.data.forEach((group) => {
+						groupChoices.push({
+							id: group.id,
+							label: group.name || group.id,
+						})
 						if (Array.isArray(group.streams)) {
 							group.streams.forEach((stream) => {
 								streams.push({
 									id: stream.id,
+									group_id: group.id,
 									label: `${group.name}: ${stream.name}`,
 									name: stream.name,
 									url: stream.url,
 									type: stream.type,
 									group: group.name,
+									raw: stream,
 								})
 							})
 						}
@@ -332,15 +341,23 @@ module.exports = {
 				if (streams.length > 0) {
 					streamsArray = streams
 				}
+				if (groupChoices.length > 0) {
+					groupsArray = groupChoices
+				}
 
 				self.STATE.sources = streams
 			} catch (e) {
 				self.log('error', 'Error getting source list: ' + e.message)
 			}
 
-			if (JSON.stringify(self.CHOICES_STREAMS) !== JSON.stringify(streamsArray)) {
+			const sourcesChanged =
+				JSON.stringify(self.CHOICES_STREAMS) !== JSON.stringify(streamsArray) ||
+				JSON.stringify(self.CHOICES_GROUPS) !== JSON.stringify(groupsArray)
+
+			if (sourcesChanged) {
 				self.log('info', 'Source list changed. Updating choices.')
 				self.CHOICES_STREAMS = streamsArray
+				self.CHOICES_GROUPS = groupsArray
 				self.initActions()
 				self.initFeedbacks()
 				self.initVariables()

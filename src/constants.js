@@ -8,6 +8,15 @@ module.exports = {
 	CHOICES_POSITIONS: [{ id: 1, label: 'Position 1' }],
 	CHOICES_LAYOUTS: [{ id: 1, label: 'Single' }],
 	CHOICES_STREAMS: [{ id: 'null', label: '- No streams available -' }],
+	CHOICES_GROUPS: [{ id: 'null', label: '- No groups available -' }],
+	CHOICES_SOURCE_TYPES: [
+		{ id: 'rtsp', label: 'RTSP' },
+		{ id: 'rtmp', label: 'RTMP' },
+		{ id: 'rtmps', label: 'RTMPS' },
+		{ id: 'http', label: 'HTTP' },
+		{ id: 'https', label: 'HTTPS' },
+		{ id: 'udp', label: 'UDP' },
+	],
 	CHOICES_RESOLUTIONS: [{ id: '1', label: '1920x1080P60' }],
 	CHOICES_PREVIEW_SLOTS: [{ id: 1, label: 'Preview 1' }],
 	CHOICES_PTZ_PRESETS: Array.from({ length: 100 }, (_, i) => ({
@@ -37,6 +46,7 @@ module.exports = {
 		outputs: [],
 		layouts: [],
 		sources: [],
+		source_groups: [],
 		preview: [],
 		audiomix: {},
 	},

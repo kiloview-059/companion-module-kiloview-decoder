@@ -32,6 +32,10 @@ This module controls Kiloview Dxx decoders with **decoder-hi3536** firmware via 
 - **Set Position Mute** — Mute or unmute audio on a position
 - **Start Stream Playback** / **Stop Stream Playback** — Control stream decode
 - **Refresh Source List** — Trigger source/NDI discovery refresh
+- **Add Source Stream** — Add RTSP/RTMP/HTTP/HTTPS/UDP stream to a group
+- **Add NDI Source** — Add an NDI stream to a group
+- **Modify Source Stream** — Update name, URL, or credentials of an existing stream
+- **Remove Source Stream** — Delete a stream from a source group
 
 ### NDI Discovery
 - **NDI: Add Manual IP** — Add manual NDI discovery IP and group

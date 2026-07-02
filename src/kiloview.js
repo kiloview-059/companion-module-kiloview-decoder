@@ -388,6 +388,75 @@ class KiloviewDecoder {
 		return this.post('/source/groups/streams/remove', params)
 	}
 
+	buildAddStreamParams(groupId, options) {
+		const { type, name, url, user, password, trans_mode } = options
+		const params = {
+			group_id: String(groupId),
+			name,
+			type,
+			url,
+			buffer: 'live:0:0:0:0:0',
+			connect_speed: 5000,
+			audio_sync_compst: 0,
+			user: user || '',
+			password: password || '',
+		}
+		if (type === 'rtsp') {
+			params.trans_mode = trans_mode || 'tcp'
+		}
+		return params
+	}
+
+	buildAddNdiStreamParams(groupId, options) {
+		const { ndi_name, url, channel, group_name } = options
+		const [ip, portStr] = String(url || '').split(':')
+		return {
+			group_id: String(groupId),
+			type: 'ndi',
+			data: [
+				{
+					name: ndi_name,
+					ndi_name,
+					url,
+					ip: ip || url,
+					port: parseInt(portStr) || 5965,
+					channel: channel || 'HB',
+					group_name: group_name || 'public',
+					connect_speed: 5000,
+					audio_sync_compst: 0,
+				},
+			],
+		}
+	}
+
+	buildModifyStreamParams(existingStream, overrides = {}) {
+		if (!existingStream?.id) {
+			throw new Error('Stream not found in cached source list')
+		}
+
+		const params = { ...existingStream.raw, stream_id: existingStream.id }
+		delete params.id
+		delete params.status
+
+		if (overrides.name) {
+			params.name = overrides.name
+		}
+		if (overrides.url) {
+			params.url = overrides.url
+		}
+		if (overrides.user !== undefined && overrides.user !== '') {
+			params.user = overrides.user
+		}
+		if (overrides.password !== undefined && overrides.password !== '') {
+			params.password = overrides.password
+		}
+		if (params.type === 'rtsp' && overrides.trans_mode) {
+			params.trans_mode = overrides.trans_mode
+		}
+
+		return params
+	}
+
 	// ── NDI Discovery (RegistHttpsRoute::createNdiDiscoveryRouters) ──────────
 
 	async getNdiDiscoveryAll() {

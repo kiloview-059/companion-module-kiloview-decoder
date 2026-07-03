@@ -6,6 +6,10 @@ module.exports = {
 
 	CHOICES_OUTPUTS: [{ id: '1', label: 'Output 1' }],
 	CHOICES_POSITIONS: [{ id: 1, label: 'Position 1' }],
+	CHOICES_POSITIONS_BY_OUTPUT: { '1': [{ id: 1, label: 'Position 1' }] },
+	CHOICES_OUTPUT_POSITIONS: [{ id: '1:1', label: 'Output 1 - Position 1' }],
+	CHOICES_STREAMS_BY_GROUP: {},
+	CHOICES_OUTPUT_LAYOUTS: [{ id: '1:1', label: 'Output 1 - Single' }],
 	CHOICES_LAYOUTS: [{ id: 1, label: 'Single' }],
 	CHOICES_STREAMS: [{ id: 'null', label: '- No streams available -' }],
 	CHOICES_GROUPS: [{ id: 'null', label: '- No groups available -' }],
@@ -19,6 +23,29 @@ module.exports = {
 	],
 	CHOICES_RESOLUTIONS: [{ id: '1', label: '1920x1080P60' }],
 	CHOICES_PREVIEW_SLOTS: [{ id: 1, label: 'Preview 1' }],
+	CHOICES_VIDEO_INTERFACES: [
+		{ id: '1', label: 'HDMI 1' },
+		{ id: '2', label: 'HDMI 2' },
+		{ id: '3', label: 'SDI' },
+	],
+	CHOICES_AUDIO_INTERFACES: [
+		{ id: '1', label: 'HDMI 1' },
+		{ id: '2', label: 'HDMI 2' },
+		{ id: '3', label: 'SDI' },
+		{ id: '4', label: 'Line Out' },
+	],
+	CHOICES_OUTPUT_VIDEO_INTERFACES: [{ id: '1:1', label: 'Output 1 - HDMI 1' }],
+	CHOICES_OUTPUT_AUDIO_INTERFACES: [{ id: '1:1', label: 'Output 1 - HDMI 1' }],
+	CHOICES_VIDEO_INTERFACE_MODES: [
+		{ id: 'HDMI', label: 'HDMI' },
+		{ id: 'DVI', label: 'DVI' },
+	],
+	CHOICES_VIDEO_COLORSPACES: [
+		{ id: 'RGB444', label: 'RGB444' },
+		{ id: 'YCBCR444', label: 'YCBCR444' },
+		{ id: 'YCBCR422', label: 'YCBCR422' },
+		{ id: 'YCBCR420', label: 'YCBCR420' },
+	],
 	CHOICES_PTZ_PRESETS: Array.from({ length: 100 }, (_, i) => ({
 		id: String(i),
 		label: `Preset ${i}`,
@@ -49,6 +76,8 @@ module.exports = {
 		source_groups: [],
 		preview: [],
 		audiomix: {},
+		video_interfaces: {},
+		audio_interfaces: {},
 	},
 
 	INTERVAL: null,

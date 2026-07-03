@@ -8,6 +8,7 @@ const variables = require('./src/variables')
 const presets = require('./src/presets')
 const api = require('./src/api')
 const constants = require('./src/constants')
+const choiceHelpers = require('./src/choiceHelpers')
 
 class KiloviewDecoderInstance extends InstanceBase {
 	constructor(internal) {
@@ -21,6 +22,7 @@ class KiloviewDecoderInstance extends InstanceBase {
 			...presets,
 			...api,
 			...constants,
+			...choiceHelpers,
 		})
 	}
 

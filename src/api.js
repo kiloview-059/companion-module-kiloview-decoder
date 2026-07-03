@@ -145,7 +145,50 @@ module.exports = {
 			layouts.push({ id: '1', label: 'Single' })
 		}
 
+		const outputLayouts = []
+		outputs.forEach((output) => {
+			layouts.forEach((layout) => {
+				outputLayouts.push({
+					id: `${output.id}:${layout.id}`,
+					label: `${output.label} - ${layout.label}`,
+					output_id: output.id,
+					layout_id: layout.id,
+				})
+			})
+		})
+		if (outputLayouts.length === 0) {
+			outputLayouts.push({ id: '1:1', label: 'Output 1 - Single' })
+		}
+
 		const positions = []
+		const positionsByOutput = {}
+		const outputPositions = []
+		if (Array.isArray(self.STATE.outputs)) {
+			self.STATE.outputs.forEach((output) => {
+				const outputId = String(output.id)
+				const outputLabel = output.name || `Output ${output.id}`
+				const detail = self.STATE.output_details?.[outputId]
+				const outputPosChoices = []
+				if (detail?.position) {
+					detail.position.forEach((pos) => {
+						outputPosChoices.push({ id: pos.id, label: `Position ${pos.number || pos.id}` })
+						outputPositions.push({
+							id: `${outputId}:${pos.id}`,
+							label: `${outputLabel} - Position ${pos.number || pos.id}`,
+							output_id: outputId,
+							pos_id: pos.id,
+						})
+					})
+				}
+				if (outputPosChoices.length === 0) {
+					for (let i = 1; i <= 4; i++) {
+						outputPosChoices.push({ id: i, label: `Position ${i}` })
+						outputPositions.push({ id: `${outputId}:${i}`, label: `${outputLabel} - Position ${i}` })
+					}
+				}
+				positionsByOutput[outputId] = outputPosChoices
+			})
+		}
 		const defaultOutput = self.STATE.output_details?.['1']
 		if (defaultOutput?.position) {
 			defaultOutput.position.forEach((pos) => {
@@ -155,6 +198,16 @@ module.exports = {
 		if (positions.length === 0) {
 			for (let i = 1; i <= 9; i++) {
 				positions.push({ id: i, label: `Position ${i}` })
+			}
+		}
+		if (Object.keys(positionsByOutput).length === 0) {
+			positionsByOutput['1'] = positions.slice(0, 4)
+			positionsByOutput['2'] = positions.slice(0, 4)
+		}
+		if (outputPositions.length === 0) {
+			for (let i = 1; i <= 4; i++) {
+				outputPositions.push({ id: `1:${i}`, label: `Output 1 - Position ${i}` })
+				outputPositions.push({ id: `2:${i}`, label: `Output 2 - Position ${i}` })
 			}
 		}
 
@@ -183,18 +236,60 @@ module.exports = {
 			}
 		}
 
+		const buildOutputInterfaceChoices = (interfacesState, fallbackInterfaces) => {
+			const choices = []
+			outputs.forEach((output) => {
+				const list = interfacesState?.[output.id]
+				const intfs =
+					Array.isArray(list) && list.length > 0
+						? list.filter((intf) => intf.visible !== false)
+						: fallbackInterfaces.map((intf) => ({ id: intf.id, label: intf.label }))
+
+				intfs.forEach((intf) => {
+					choices.push({
+						id: `${output.id}:${intf.id}`,
+						label: `${output.label} - ${intf.label}`,
+						output_id: output.id,
+						intf_id: String(intf.id),
+					})
+				})
+			})
+			return choices
+		}
+
+		const outputVideoInterfaces = buildOutputInterfaceChoices(
+			self.STATE.video_interfaces,
+			self.CHOICES_VIDEO_INTERFACES
+		)
+		const outputAudioInterfaces = buildOutputInterfaceChoices(
+			self.STATE.audio_interfaces,
+			self.CHOICES_AUDIO_INTERFACES
+		)
+
 		const changed =
 			JSON.stringify(self.CHOICES_OUTPUTS) !== JSON.stringify(outputs) ||
 			JSON.stringify(self.CHOICES_LAYOUTS) !== JSON.stringify(layouts) ||
+			JSON.stringify(self.CHOICES_OUTPUT_LAYOUTS) !== JSON.stringify(outputLayouts) ||
 			JSON.stringify(self.CHOICES_POSITIONS) !== JSON.stringify(positions) ||
+			JSON.stringify(self.CHOICES_POSITIONS_BY_OUTPUT) !== JSON.stringify(positionsByOutput) ||
+			JSON.stringify(self.CHOICES_OUTPUT_POSITIONS) !== JSON.stringify(outputPositions) ||
 			JSON.stringify(self.CHOICES_RESOLUTIONS) !== JSON.stringify(resolutions) ||
-			JSON.stringify(self.CHOICES_PREVIEW_SLOTS) !== JSON.stringify(previewSlots)
+			JSON.stringify(self.CHOICES_PREVIEW_SLOTS) !== JSON.stringify(previewSlots) ||
+			JSON.stringify(self.CHOICES_OUTPUT_VIDEO_INTERFACES) !== JSON.stringify(outputVideoInterfaces) ||
+			JSON.stringify(self.CHOICES_OUTPUT_AUDIO_INTERFACES) !== JSON.stringify(outputAudioInterfaces)
 
 		self.CHOICES_OUTPUTS = outputs
 		self.CHOICES_LAYOUTS = layouts
+		self.CHOICES_OUTPUT_LAYOUTS = outputLayouts
 		self.CHOICES_POSITIONS = positions
+		self.CHOICES_POSITIONS_BY_OUTPUT = positionsByOutput
+		self.CHOICES_OUTPUT_POSITIONS = outputPositions
 		self.CHOICES_RESOLUTIONS = resolutions
 		self.CHOICES_PREVIEW_SLOTS = previewSlots
+		self.CHOICES_OUTPUT_VIDEO_INTERFACES =
+			outputVideoInterfaces.length > 0 ? outputVideoInterfaces : [{ id: '1:1', label: 'Output 1 - HDMI 1' }]
+		self.CHOICES_OUTPUT_AUDIO_INTERFACES =
+			outputAudioInterfaces.length > 0 ? outputAudioInterfaces : [{ id: '1:1', label: 'Output 1 - HDMI 1' }]
 
 		if (changed) {
 			self.initActions()
@@ -269,16 +364,34 @@ module.exports = {
 						}
 					}
 
-					try {
-						const audiomix = await self.DEVICE.getAudiomix(String(output.id))
-						self.STATE.audiomix[String(output.id)] = audiomix?.data || {}
-					} catch (e) {
-						if (self.config.verbose) {
-							self.log('debug', `Error getting audiomix ${output.id}: ` + e.message)
-						}
+				try {
+					const audiomix = await self.DEVICE.getAudiomix(String(output.id))
+					self.STATE.audiomix[String(output.id)] = audiomix?.data || {}
+				} catch (e) {
+					if (self.config.verbose) {
+						self.log('debug', `Error getting audiomix ${output.id}: ` + e.message)
+					}
+				}
+
+				try {
+					const videoIf = await self.DEVICE.getVideoInterfaces(String(output.id))
+					self.STATE.video_interfaces[String(output.id)] = videoIf?.data || []
+				} catch (e) {
+					if (self.config.verbose) {
+						self.log('debug', `Error getting video interfaces ${output.id}: ` + e.message)
+					}
+				}
+
+				try {
+					const audioIf = await self.DEVICE.getAudioInterfaces(String(output.id))
+					self.STATE.audio_interfaces[String(output.id)] = audioIf?.data || []
+				} catch (e) {
+					if (self.config.verbose) {
+						self.log('debug', `Error getting audio interfaces ${output.id}: ` + e.message)
 					}
 				}
 			}
+		}
 
 			try {
 				const preview = await self.DEVICE.getPreviewList()
@@ -307,6 +420,7 @@ module.exports = {
 
 		let streamsArray = [{ id: 'null', label: '- No streams available -' }]
 		let groupsArray = [{ id: 'null', label: '- No groups available -' }]
+		let streamsByGroup = {}
 
 		try {
 			try {
@@ -321,20 +435,32 @@ module.exports = {
 							id: group.id,
 							label: group.name || group.id,
 						})
+						const groupStreams = []
 						if (Array.isArray(group.streams)) {
 							group.streams.forEach((stream) => {
-								streams.push({
+								const entry = {
 									id: stream.id,
 									group_id: group.id,
-									label: `${group.name}: ${stream.name}`,
 									name: stream.name,
 									url: stream.url,
 									type: stream.type,
 									group: group.name,
 									raw: stream,
+								}
+								groupStreams.push({
+									...entry,
+									label: stream.name,
+								})
+								streams.push({
+									...entry,
+									label: `${group.name || group.id}: ${stream.name}`,
 								})
 							})
 						}
+						streamsByGroup[group.id] =
+							groupStreams.length > 0
+								? groupStreams
+								: [{ id: 'null', label: '- No streams in group -' }]
 					})
 				}
 
@@ -352,12 +478,14 @@ module.exports = {
 
 			const sourcesChanged =
 				JSON.stringify(self.CHOICES_STREAMS) !== JSON.stringify(streamsArray) ||
-				JSON.stringify(self.CHOICES_GROUPS) !== JSON.stringify(groupsArray)
+				JSON.stringify(self.CHOICES_GROUPS) !== JSON.stringify(groupsArray) ||
+				JSON.stringify(self.CHOICES_STREAMS_BY_GROUP) !== JSON.stringify(streamsByGroup)
 
 			if (sourcesChanged) {
 				self.log('info', 'Source list changed. Updating choices.')
 				self.CHOICES_STREAMS = streamsArray
 				self.CHOICES_GROUPS = groupsArray
+				self.CHOICES_STREAMS_BY_GROUP = streamsByGroup
 				self.initActions()
 				self.initFeedbacks()
 				self.initVariables()

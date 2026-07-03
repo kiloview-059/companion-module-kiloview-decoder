@@ -34,7 +34,9 @@ module.exports = {
 				},
 			],
 			callback: (feedback) => {
-				const output = self.STATE.outputs.find((o) => String(o.id) === String(feedback.options.output_id))
+				const output = self.STATE.outputs.find(
+					(o) => String(o.id) === String(feedback.options.output_id)
+				)
 				if (!output) {
 					return false
 				}
@@ -50,28 +52,17 @@ module.exports = {
 				color: colorWhite,
 				bgcolor: colorGreen,
 			},
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Output',
-					id: 'output_id',
-					default: self.CHOICES_OUTPUTS[0]?.id || '1',
-					choices: self.CHOICES_OUTPUTS,
-				},
-				{
-					type: 'dropdown',
-					label: 'Position',
-					id: 'pos_id',
-					default: self.CHOICES_POSITIONS[0]?.id || 1,
-					choices: self.CHOICES_POSITIONS,
-				},
-			],
+			options: [...self.buildOutputPositionFields(self)],
 			callback: (feedback) => {
-				const detail = self.STATE.output_details?.[String(feedback.options.output_id)]
+				const position = self.resolveOutputPosition(self, feedback.options)
+				if (!position) {
+					return false
+				}
+				const detail = self.STATE.output_details?.[String(position.output_id)]
 				if (!detail?.position) {
 					return false
 				}
-				const pos = detail.position.find((p) => String(p.id) === String(feedback.options.pos_id))
+				const pos = detail.position.find((p) => String(p.id) === String(position.pos_id))
 				return !!pos?.stream_id && pos.status === 2
 			},
 		}
@@ -85,35 +76,21 @@ module.exports = {
 				bgcolor: colorGreen,
 			},
 			options: [
-				{
-					type: 'dropdown',
-					label: 'Output',
-					id: 'output_id',
-					default: self.CHOICES_OUTPUTS[0]?.id || '1',
-					choices: self.CHOICES_OUTPUTS,
-				},
-				{
-					type: 'dropdown',
-					label: 'Position',
-					id: 'pos_id',
-					default: self.CHOICES_POSITIONS[0]?.id || 1,
-					choices: self.CHOICES_POSITIONS,
-				},
-				{
-					type: 'dropdown',
-					label: 'Stream',
-					id: 'stream_id',
-					default: self.CHOICES_STREAMS[0]?.id || 'null',
-					choices: self.CHOICES_STREAMS,
-				},
+				...self.buildOutputPositionFields(self),
+				...self.buildGroupStreamFields(self),
 			],
 			callback: (feedback) => {
-				const detail = self.STATE.output_details?.[String(feedback.options.output_id)]
+				const position = self.resolveOutputPosition(self, feedback.options)
+				const streamSelection = self.resolveStream(self, feedback.options)
+				if (!position || !streamSelection) {
+					return false
+				}
+				const detail = self.STATE.output_details?.[String(position.output_id)]
 				if (!detail?.position) {
 					return false
 				}
-				const pos = detail.position.find((p) => String(p.id) === String(feedback.options.pos_id))
-				return pos?.stream_id === feedback.options.stream_id
+				const pos = detail.position.find((p) => String(p.id) === String(position.pos_id))
+				return pos?.stream_id === streamSelection.stream_id
 			},
 		}
 
@@ -212,17 +189,15 @@ module.exports = {
 					default: self.CHOICES_PREVIEW_SLOTS[0]?.id || 1,
 					choices: self.CHOICES_PREVIEW_SLOTS,
 				},
-				{
-					type: 'dropdown',
-					label: 'Stream',
-					id: 'stream_id',
-					default: self.CHOICES_STREAMS[0]?.id || 'null',
-					choices: self.CHOICES_STREAMS,
-				},
+				...self.buildGroupStreamFields(self),
 			],
 			callback: (feedback) => {
+				const streamSelection = self.resolveStream(self, feedback.options)
+				if (!streamSelection) {
+					return false
+				}
 				const slot = self.STATE.preview.find((p) => String(p.id) === String(feedback.options.pos_id))
-				return slot?.stream_id === feedback.options.stream_id
+				return slot?.stream_id === streamSelection.stream_id
 			},
 		}
 
@@ -239,16 +214,10 @@ module.exports = {
 					type: 'dropdown',
 					label: 'Output',
 					id: 'output_id',
-					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					default: self.getDefaultOutputId(self),
 					choices: self.CHOICES_OUTPUTS,
 				},
-				{
-					type: 'dropdown',
-					label: 'Stream',
-					id: 'stream_id',
-					default: self.CHOICES_STREAMS[0]?.id || 'null',
-					choices: self.CHOICES_STREAMS,
-				},
+				...self.buildGroupStreamFields(self),
 				{
 					type: 'dropdown',
 					label: 'Mix Type',
@@ -258,13 +227,119 @@ module.exports = {
 				},
 			],
 			callback: (feedback) => {
+				const streamSelection = self.resolveStream(self, feedback.options)
+				if (!streamSelection) {
+					return false
+				}
 				const mix = self.STATE.audiomix[String(feedback.options.output_id)]
 				if (!mix) {
 					return false
 				}
 				const list = mix[feedback.options.mix_type] || []
-				const item = list.find((s) => s.stream_id === feedback.options.stream_id)
+				const item = list.find((s) => s.stream_id === streamSelection.stream_id)
 				return item?.enable === true
+			},
+		}
+
+		feedbacks.videoInterfaceEnabled = {
+			type: 'boolean',
+			name: 'Video Interface Enabled',
+			description: 'Highlight when HDMI/SDI interface is enabled on an output',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorGreen,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Output',
+					id: 'output_id',
+					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					choices: self.CHOICES_OUTPUTS,
+				},
+				{
+					type: 'dropdown',
+					label: 'Interface',
+					id: 'intf_id',
+					default: '1',
+					choices: self.CHOICES_VIDEO_INTERFACES,
+				},
+			],
+			callback: (feedback) => {
+				const list = self.STATE.video_interfaces[String(feedback.options.output_id)]
+				if (!Array.isArray(list)) {
+					return false
+				}
+				const intf = list.find((i) => String(i.id) === String(feedback.options.intf_id))
+				return intf?.enable === true
+			},
+		}
+
+		feedbacks.audioInterfaceEnabled = {
+			type: 'boolean',
+			name: 'Audio Interface Enabled',
+			description: 'Highlight when HDMI/SDI/Line Out audio interface is enabled',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorGreen,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Output',
+					id: 'output_id',
+					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					choices: self.CHOICES_OUTPUTS,
+				},
+				{
+					type: 'dropdown',
+					label: 'Interface',
+					id: 'intf_id',
+					default: '1',
+					choices: self.CHOICES_AUDIO_INTERFACES,
+				},
+			],
+			callback: (feedback) => {
+				const list = self.STATE.audio_interfaces[String(feedback.options.output_id)]
+				if (!Array.isArray(list)) {
+					return false
+				}
+				const intf = list.find((i) => String(i.id) === String(feedback.options.intf_id))
+				return intf?.enable === true
+			},
+		}
+
+		feedbacks.audioInterfaceMuted = {
+			type: 'boolean',
+			name: 'Audio Interface Muted',
+			description: 'Highlight when an audio output interface is muted',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: colorRed,
+			},
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Output',
+					id: 'output_id',
+					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					choices: self.CHOICES_OUTPUTS,
+				},
+				{
+					type: 'dropdown',
+					label: 'Interface',
+					id: 'intf_id',
+					default: '1',
+					choices: self.CHOICES_AUDIO_INTERFACES,
+				},
+			],
+			callback: (feedback) => {
+				const list = self.STATE.audio_interfaces[String(feedback.options.output_id)]
+				if (!Array.isArray(list)) {
+					return false
+				}
+				const intf = list.find((i) => String(i.id) === String(feedback.options.intf_id))
+				return intf?.mute === true
 			},
 		}
 

@@ -29,7 +29,8 @@ module.exports = {
 		}
 
 		actions.selectLayout = {
-			name: 'Select Layout',
+			name: 'Select Layout for Output',
+			description: 'Apply a layout template to Output 1 or Output 2',
 			options: [
 				{
 					type: 'dropdown',
@@ -48,6 +49,10 @@ module.exports = {
 			],
 			callback: async (action) => {
 				const { output_id, layout_id } = action.options
+				if (!output_id || !layout_id) {
+					self.log('warn', 'Select Layout: missing output or layout')
+					return
+				}
 				await self.DEVICE.selectLayout(output_id, layout_id)
 				await self.checkState()
 			},
@@ -55,37 +60,27 @@ module.exports = {
 
 		actions.assignSource = {
 			name: 'Assign Source to Position',
+			description: 'Assign a stream to a window position on Output 1 or Output 2',
 			options: [
-				{
-					type: 'dropdown',
-					label: 'Output',
-					id: 'output_id',
-					default: self.CHOICES_OUTPUTS[0]?.id || '1',
-					choices: self.CHOICES_OUTPUTS,
-				},
-				{
-					type: 'dropdown',
-					label: 'Position',
-					id: 'pos_id',
-					default: self.CHOICES_POSITIONS[0]?.id || 1,
-					choices: self.CHOICES_POSITIONS,
-				},
-				{
-					type: 'dropdown',
-					label: 'Stream',
-					id: 'stream_id',
-					default: self.CHOICES_STREAMS[0]?.id || 'null',
-					choices: self.CHOICES_STREAMS,
-				},
+				...self.buildOutputPositionFields(self),
+				...self.buildGroupStreamFields(self),
 			],
 			callback: async (action) => {
-				const { output_id, pos_id, stream_id } = action.options
-				if (!stream_id || stream_id === 'null') {
+				const position = self.resolveOutputPosition(self, action.options)
+				const streamSelection = self.resolveStream(self, action.options)
+				if (!streamSelection) {
 					self.log('warn', 'No stream selected')
 					return
 				}
+				if (!position) {
+					self.log('warn', 'Invalid output or position selection')
+					return
+				}
 
-				const stream = self.CHOICES_STREAMS.find((s) => s.id === stream_id)
+				const { output_id, pos_id } = position
+				const { stream_id } = streamSelection
+
+				const stream = self.findStream(self, stream_id)
 				const outputDetail = self.STATE.output_details?.[String(output_id)]
 				const layoutId = outputDetail?.layout_id || parseInt(self.CHOICES_LAYOUTS[0]?.id || 1)
 
@@ -104,26 +99,75 @@ module.exports = {
 			},
 		}
 
-		actions.removeSource = {
-			name: 'Remove Source from Position',
+		actions.selectLayoutAndAssignSource = {
+			name: 'Select Layout and Assign Source',
+			description: 'Switch layout on an output, then assign a stream to a position',
 			options: [
 				{
 					type: 'dropdown',
 					label: 'Output',
 					id: 'output_id',
-					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					default: self.getDefaultOutputId(self),
 					choices: self.CHOICES_OUTPUTS,
 				},
 				{
 					type: 'dropdown',
-					label: 'Position',
-					id: 'pos_id',
-					default: self.CHOICES_POSITIONS[0]?.id || 1,
-					choices: self.CHOICES_POSITIONS,
+					label: 'Layout',
+					id: 'layout_id',
+					default: self.CHOICES_LAYOUTS[0]?.id || '1',
+					choices: self.CHOICES_LAYOUTS,
 				},
+				...self.buildOutputPositionFields(self).slice(1),
+				...self.buildGroupStreamFields(self),
 			],
 			callback: async (action) => {
-				const { output_id, pos_id } = action.options
+				const { output_id, layout_id } = action.options
+				const position = self.resolveOutputPosition(self, action.options)
+				const streamSelection = self.resolveStream(self, action.options)
+				if (!streamSelection) {
+					self.log('warn', 'No stream selected')
+					return
+				}
+				if (!position) {
+					self.log('warn', 'Invalid output or position selection')
+					return
+				}
+				if (String(position.output_id) !== String(output_id)) {
+					self.log('warn', 'Position must match the selected output')
+					return
+				}
+				const { pos_id } = position
+				const { stream_id } = streamSelection
+
+				await self.DEVICE.selectLayout(output_id, layout_id)
+				await self.checkState()
+
+				const stream = self.findStream(self, stream_id)
+				const params = self.DEVICE.buildAssignSourceParams(
+					output_id,
+					pos_id,
+					{
+						id: stream_id,
+						name: stream?.name || stream?.label || '',
+						url: stream?.url || '',
+					},
+					parseInt(layout_id)
+				)
+				await self.DEVICE.setSource(params)
+				await self.checkState()
+			},
+		}
+
+		actions.removeSource = {
+			name: 'Remove Source from Position',
+			options: [...self.buildOutputPositionFields(self)],
+			callback: async (action) => {
+				const position = self.resolveOutputPosition(self, action.options)
+				if (!position) {
+					self.log('warn', 'Invalid output or position selection')
+					return
+				}
+				const { output_id, pos_id } = position
 				await self.DEVICE.removeSource(output_id, pos_id)
 				await self.checkState()
 			},
@@ -154,50 +198,9 @@ module.exports = {
 			},
 		}
 
-		actions.startStream = {
-			name: 'Start Stream Playback',
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Stream',
-					id: 'stream_id',
-					default: self.CHOICES_STREAMS[0]?.id || 'null',
-					choices: self.CHOICES_STREAMS,
-				},
-			],
-			callback: async (action) => {
-				const { stream_id } = action.options
-				if (!stream_id || stream_id === 'null') {
-					return
-				}
-				await self.DEVICE.startPlay(stream_id)
-				await self.checkState()
-			},
-		}
-
-		actions.stopStream = {
-			name: 'Stop Stream Playback',
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Stream',
-					id: 'stream_id',
-					default: self.CHOICES_STREAMS[0]?.id || 'null',
-					choices: self.CHOICES_STREAMS,
-				},
-			],
-			callback: async (action) => {
-				const { stream_id } = action.options
-				if (!stream_id || stream_id === 'null') {
-					return
-				}
-				await self.DEVICE.stopPlay(stream_id)
-				await self.checkState()
-			},
-		}
-
-		actions.setMute = {
-			name: 'Set Position Mute',
+		actions.setVideoInterfaceEnable = {
+			name: 'Set Video Interface Enable',
+			description: 'Enable or disable HDMI/SDI video output (HDMI1, HDMI2, SDI)',
 			options: [
 				{
 					type: 'dropdown',
@@ -208,10 +211,210 @@ module.exports = {
 				},
 				{
 					type: 'dropdown',
-					label: 'Position',
-					id: 'pos_id',
-					default: self.CHOICES_POSITIONS[0]?.id || 1,
-					choices: self.CHOICES_POSITIONS,
+					label: 'Interface',
+					id: 'intf_id',
+					default: '1',
+					choices: self.CHOICES_VIDEO_INTERFACES,
+				},
+				{
+					type: 'dropdown',
+					label: 'Enable',
+					id: 'enable',
+					default: 'true',
+					choices: [
+						{ id: 'true', label: 'On' },
+						{ id: 'false', label: 'Off' },
+					],
+				},
+			],
+			callback: async (action) => {
+				const { output_id, intf_id, enable } = action.options
+				await self.DEVICE.setVideoInterface(output_id, intf_id, {
+					enable: enable === 'true',
+				})
+				await self.checkState()
+			},
+		}
+
+		actions.setVideoInterfaceMode = {
+			name: 'Set Video Interface Mode',
+			description: 'Set HDMI/DVI mode on HDMI1 or HDMI2',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Output',
+					id: 'output_id',
+					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					choices: self.CHOICES_OUTPUTS,
+				},
+				{
+					type: 'dropdown',
+					label: 'Interface',
+					id: 'intf_id',
+					default: '1',
+					choices: self.CHOICES_VIDEO_INTERFACES.filter((i) => i.id !== '3'),
+				},
+				{
+					type: 'dropdown',
+					label: 'Mode',
+					id: 'mode',
+					default: 'HDMI',
+					choices: self.CHOICES_VIDEO_INTERFACE_MODES,
+				},
+			],
+			callback: async (action) => {
+				const { output_id, intf_id, mode } = action.options
+				await self.DEVICE.setVideoInterface(output_id, intf_id, { mode })
+				await self.checkState()
+			},
+		}
+
+		actions.setVideoInterfaceColorspace = {
+			name: 'Set Video Interface Colorspace',
+			description: 'Set colorspace on HDMI1, HDMI2, or SDI',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Output',
+					id: 'output_id',
+					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					choices: self.CHOICES_OUTPUTS,
+				},
+				{
+					type: 'dropdown',
+					label: 'Interface',
+					id: 'intf_id',
+					default: '1',
+					choices: self.CHOICES_VIDEO_INTERFACES,
+				},
+				{
+					type: 'dropdown',
+					label: 'Colorspace',
+					id: 'colorspace',
+					default: 'RGB444',
+					choices: self.CHOICES_VIDEO_COLORSPACES,
+				},
+			],
+			callback: async (action) => {
+				const { output_id, intf_id, colorspace } = action.options
+				await self.DEVICE.setVideoInterface(output_id, intf_id, { colorspace })
+				await self.checkState()
+			},
+		}
+
+		actions.toggleVideoInterfaceEnable = {
+			name: 'Toggle Video Interface',
+			description: 'Enable or disable HDMI1, HDMI2, or SDI video output',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Output',
+					id: 'output_id',
+					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					choices: self.CHOICES_OUTPUTS,
+				},
+				{
+					type: 'dropdown',
+					label: 'Interface',
+					id: 'intf_id',
+					default: '1',
+					choices: self.CHOICES_VIDEO_INTERFACES,
+				},
+			],
+			callback: async (action) => {
+				const { output_id, intf_id } = action.options
+				const list = self.STATE.video_interfaces[String(output_id)]
+				const intf = Array.isArray(list) ? list.find((i) => String(i.id) === String(intf_id)) : null
+				const enable = !(intf?.enable === true)
+				await self.DEVICE.setVideoInterface(output_id, intf_id, { enable })
+				await self.checkState()
+			},
+		}
+
+		actions.setAudioInterfaceEnable = {
+			name: 'Set Audio Interface Enable',
+			description: 'Enable or disable HDMI1, HDMI2, SDI, or Line Out audio output',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Output',
+					id: 'output_id',
+					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					choices: self.CHOICES_OUTPUTS,
+				},
+				{
+					type: 'dropdown',
+					label: 'Interface',
+					id: 'intf_id',
+					default: '1',
+					choices: self.CHOICES_AUDIO_INTERFACES,
+				},
+				{
+					type: 'dropdown',
+					label: 'Enable',
+					id: 'enable',
+					default: 'true',
+					choices: [
+						{ id: 'true', label: 'On' },
+						{ id: 'false', label: 'Off' },
+					],
+				},
+			],
+			callback: async (action) => {
+				const { output_id, intf_id, enable } = action.options
+				await self.DEVICE.setAudioInterface(output_id, intf_id, {
+					enable: enable === 'true',
+				})
+				await self.checkState()
+			},
+		}
+
+		actions.toggleAudioInterfaceEnable = {
+			name: 'Toggle Audio Interface',
+			description: 'Enable or disable HDMI1, HDMI2, SDI, or Line Out audio output',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Output',
+					id: 'output_id',
+					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					choices: self.CHOICES_OUTPUTS,
+				},
+				{
+					type: 'dropdown',
+					label: 'Interface',
+					id: 'intf_id',
+					default: '1',
+					choices: self.CHOICES_AUDIO_INTERFACES,
+				},
+			],
+			callback: async (action) => {
+				const { output_id, intf_id } = action.options
+				const list = self.STATE.audio_interfaces[String(output_id)]
+				const intf = Array.isArray(list) ? list.find((i) => String(i.id) === String(intf_id)) : null
+				const enable = !(intf?.enable === true)
+				await self.DEVICE.setAudioInterface(output_id, intf_id, { enable })
+				await self.checkState()
+			},
+		}
+
+		actions.setAudioInterfaceMute = {
+			name: 'Set Audio Interface Mute',
+			description: 'Mute or unmute an audio output interface',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Output',
+					id: 'output_id',
+					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					choices: self.CHOICES_OUTPUTS,
+				},
+				{
+					type: 'dropdown',
+					label: 'Interface',
+					id: 'intf_id',
+					default: '1',
+					choices: self.CHOICES_AUDIO_INTERFACES,
 				},
 				{
 					type: 'dropdown',
@@ -225,8 +428,128 @@ module.exports = {
 				},
 			],
 			callback: async (action) => {
-				const { output_id, pos_id, mute } = action.options
-				await self.DEVICE.setMute(output_id, pos_id, mute === 'true')
+				const { output_id, intf_id, mute } = action.options
+				await self.DEVICE.setAudioInterface(output_id, intf_id, {
+					mute: mute === 'true',
+				})
+				await self.checkState()
+			},
+		}
+
+		actions.toggleAudioInterfaceMute = {
+			name: 'Toggle Audio Interface Mute',
+			description: 'Toggle mute on HDMI1, HDMI2, SDI, or Line Out audio output',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Output',
+					id: 'output_id',
+					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					choices: self.CHOICES_OUTPUTS,
+				},
+				{
+					type: 'dropdown',
+					label: 'Interface',
+					id: 'intf_id',
+					default: '1',
+					choices: self.CHOICES_AUDIO_INTERFACES,
+				},
+			],
+			callback: async (action) => {
+				const { output_id, intf_id } = action.options
+				const list = self.STATE.audio_interfaces[String(output_id)]
+				const intf = Array.isArray(list) ? list.find((i) => String(i.id) === String(intf_id)) : null
+				const mute = !(intf?.mute === true)
+				await self.DEVICE.setAudioInterface(output_id, intf_id, { mute })
+				await self.checkState()
+			},
+		}
+
+		actions.setAudioInterfaceVolume = {
+			name: 'Set Audio Interface Volume',
+			description: 'Set audio output volume in dB (-51 to 20)',
+			options: [
+				{
+					type: 'dropdown',
+					label: 'Output',
+					id: 'output_id',
+					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					choices: self.CHOICES_OUTPUTS,
+				},
+				{
+					type: 'dropdown',
+					label: 'Interface',
+					id: 'intf_id',
+					default: '1',
+					choices: self.CHOICES_AUDIO_INTERFACES,
+				},
+				{
+					type: 'number',
+					label: 'Volume (dB)',
+					id: 'volume',
+					default: 0,
+					min: -51,
+					max: 20,
+				},
+			],
+			callback: async (action) => {
+				const { output_id, intf_id, volume } = action.options
+				await self.DEVICE.setAudioInterface(output_id, intf_id, {
+					volume: parseInt(volume),
+				})
+				await self.checkState()
+			},
+		}
+
+		actions.startStream = {
+			name: 'Start Stream Playback',
+			options: [...self.buildGroupStreamFields(self)],
+			callback: async (action) => {
+				const streamSelection = self.resolveStream(self, action.options)
+				if (!streamSelection) {
+					return
+				}
+				await self.DEVICE.startPlay(streamSelection.stream_id)
+				await self.checkState()
+			},
+		}
+
+		actions.stopStream = {
+			name: 'Stop Stream Playback',
+			options: [...self.buildGroupStreamFields(self)],
+			callback: async (action) => {
+				const streamSelection = self.resolveStream(self, action.options)
+				if (!streamSelection) {
+					return
+				}
+				await self.DEVICE.stopPlay(streamSelection.stream_id)
+				await self.checkState()
+			},
+		}
+
+		actions.setMute = {
+			name: 'Set Position Mute',
+			options: [
+				...self.buildOutputPositionFields(self),
+				{
+					type: 'dropdown',
+					label: 'Mute',
+					id: 'mute',
+					default: 'true',
+					choices: [
+						{ id: 'true', label: 'Mute On' },
+						{ id: 'false', label: 'Mute Off' },
+					],
+				},
+			],
+			callback: async (action) => {
+				const position = self.resolveOutputPosition(self, action.options)
+				if (!position) {
+					self.log('warn', 'Invalid output or position selection')
+					return
+				}
+				const { output_id, pos_id } = position
+				await self.DEVICE.setMute(output_id, pos_id, action.options.mute === 'true')
 				await self.checkState()
 			},
 		}
@@ -434,13 +757,7 @@ module.exports = {
 			name: 'Modify Source Stream',
 			description: 'Update an existing stream (leave fields blank to keep current values)',
 			options: [
-				{
-					type: 'dropdown',
-					label: 'Stream',
-					id: 'stream_id',
-					default: self.CHOICES_STREAMS[0]?.id || 'null',
-					choices: self.CHOICES_STREAMS,
-				},
+				...self.buildGroupStreamFields(self),
 				{
 					type: 'textinput',
 					label: 'Name (optional)',
@@ -478,16 +795,17 @@ module.exports = {
 				},
 			],
 			callback: async (action) => {
-				const { stream_id, name, url, user, password, trans_mode } = action.options
-				if (!stream_id || stream_id === 'null') {
+				const streamSelection = self.resolveStream(self, action.options)
+				if (!streamSelection) {
 					self.log('warn', 'No stream selected')
 					return
 				}
-				const stream = self.STATE.sources.find((s) => s.id === stream_id)
+				const stream = self.findStream(self, streamSelection.stream_id)
 				if (!stream) {
 					self.log('warn', 'Stream not found in cached source list; refresh sources first')
 					return
 				}
+				const { name, url, user, password, trans_mode } = action.options
 				const params = self.DEVICE.buildModifyStreamParams(stream, {
 					name,
 					url,
@@ -503,29 +821,16 @@ module.exports = {
 		actions.removeSourceStream = {
 			name: 'Remove Source Stream',
 			description: 'Delete a stream from a source group',
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Stream',
-					id: 'stream_id',
-					default: self.CHOICES_STREAMS[0]?.id || 'null',
-					choices: self.CHOICES_STREAMS,
-				},
-			],
+			options: [...self.buildGroupStreamFields(self)],
 			callback: async (action) => {
-				const { stream_id } = action.options
-				if (!stream_id || stream_id === 'null') {
+				const streamSelection = self.resolveStream(self, action.options)
+				if (!streamSelection) {
 					self.log('warn', 'No stream selected')
 					return
 				}
-				const stream = self.STATE.sources.find((s) => s.id === stream_id)
-				if (!stream?.group_id) {
-					self.log('warn', 'Stream group not found; refresh sources first')
-					return
-				}
 				await self.DEVICE.removeSourceStream({
-					group_id: stream.group_id,
-					stream_id: stream.id,
+					group_id: streamSelection.group_id,
+					stream_id: streamSelection.stream_id,
 				})
 				await self.checkSources()
 			},
@@ -591,30 +896,25 @@ module.exports = {
 			name: 'Assign Source to Preview',
 			description: 'Add a stream to the preview panel',
 			options: [
-				{
-					type: 'dropdown',
-					label: 'Stream',
-					id: 'stream_id',
-					default: self.CHOICES_STREAMS[0]?.id || 'null',
-					choices: self.CHOICES_STREAMS,
-				},
+				...self.buildGroupStreamFields(self),
 				{
 					type: 'dropdown',
 					label: 'Output Context',
 					id: 'output_id',
-					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					default: self.getDefaultOutputId(self),
 					choices: self.CHOICES_OUTPUTS,
 				},
 			],
 			callback: async (action) => {
-				const { stream_id, output_id } = action.options
-				if (!stream_id || stream_id === 'null') {
+				const streamSelection = self.resolveStream(self, action.options)
+				if (!streamSelection) {
 					return
 				}
-				const stream = self.CHOICES_STREAMS.find((s) => s.id === stream_id)
+				const { output_id } = action.options
+				const stream = self.findStream(self, streamSelection.stream_id)
 				const params = self.DEVICE.buildPreviewAssignParams(
 					{
-						id: stream_id,
+						id: streamSelection.stream_id,
 						name: stream?.name || stream?.label || '',
 						url: stream?.url || '',
 					},
@@ -651,16 +951,10 @@ module.exports = {
 					type: 'dropdown',
 					label: 'Output',
 					id: 'output_id',
-					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					default: self.getDefaultOutputId(self),
 					choices: self.CHOICES_OUTPUTS,
 				},
-				{
-					type: 'dropdown',
-					label: 'Stream',
-					id: 'stream_id',
-					default: self.CHOICES_STREAMS[0]?.id || 'null',
-					choices: self.CHOICES_STREAMS,
-				},
+				...self.buildGroupStreamFields(self),
 				{
 					type: 'dropdown',
 					label: 'Mix Type',
@@ -680,13 +974,14 @@ module.exports = {
 				},
 			],
 			callback: async (action) => {
-				const { output_id, stream_id, mix_type, enable } = action.options
-				if (!stream_id || stream_id === 'null') {
+				const streamSelection = self.resolveStream(self, action.options)
+				if (!streamSelection) {
 					return
 				}
+				const { output_id, mix_type, enable } = action.options
 				await self.DEVICE.setAudiomix({
 					output_id,
-					stream_id,
+					stream_id: streamSelection.stream_id,
 					type: mix_type,
 					enable: enable === 'true',
 				})
@@ -702,16 +997,10 @@ module.exports = {
 					type: 'dropdown',
 					label: 'Output',
 					id: 'output_id',
-					default: self.CHOICES_OUTPUTS[0]?.id || '1',
+					default: self.getDefaultOutputId(self),
 					choices: self.CHOICES_OUTPUTS,
 				},
-				{
-					type: 'dropdown',
-					label: 'Stream',
-					id: 'stream_id',
-					default: self.CHOICES_STREAMS[0]?.id || 'null',
-					choices: self.CHOICES_STREAMS,
-				},
+				...self.buildGroupStreamFields(self),
 				{
 					type: 'dropdown',
 					label: 'Mix Type',
@@ -729,13 +1018,14 @@ module.exports = {
 				},
 			],
 			callback: async (action) => {
-				const { output_id, stream_id, mix_type, volume } = action.options
-				if (!stream_id || stream_id === 'null') {
+				const streamSelection = self.resolveStream(self, action.options)
+				if (!streamSelection) {
 					return
 				}
+				const { output_id, mix_type, volume } = action.options
 				await self.DEVICE.setAudiomix({
 					output_id,
-					stream_id,
+					stream_id: streamSelection.stream_id,
 					type: mix_type,
 					volume: parseInt(volume),
 				})
@@ -747,20 +1037,7 @@ module.exports = {
 			name: 'PTZ: Store Preset',
 			description: 'Store current PTZ position to a preset slot (NDI sources only)',
 			options: [
-				{
-					type: 'dropdown',
-					label: 'Output',
-					id: 'output_id',
-					default: self.CHOICES_OUTPUTS[0]?.id || '1',
-					choices: self.CHOICES_OUTPUTS,
-				},
-				{
-					type: 'dropdown',
-					label: 'Position',
-					id: 'pos_id',
-					default: self.CHOICES_POSITIONS[0]?.id || 1,
-					choices: self.CHOICES_POSITIONS,
-				},
+				...self.buildOutputPositionFields(self),
 				{
 					type: 'dropdown',
 					label: 'Preset',
@@ -770,7 +1047,13 @@ module.exports = {
 				},
 			],
 			callback: async (action) => {
-				const { output_id, pos_id, preset_no } = action.options
+				const position = self.resolveOutputPosition(self, action.options)
+				if (!position) {
+					self.log('warn', 'Invalid output or position selection')
+					return
+				}
+				const { output_id, pos_id } = position
+				const { preset_no } = action.options
 				const layoutId =
 					self.STATE.output_details?.[String(output_id)]?.layout_id ||
 					parseInt(self.CHOICES_LAYOUTS[0]?.id || 1)
@@ -782,20 +1065,7 @@ module.exports = {
 			name: 'PTZ: Recall Preset',
 			description: 'Recall a stored PTZ preset (NDI sources only)',
 			options: [
-				{
-					type: 'dropdown',
-					label: 'Output',
-					id: 'output_id',
-					default: self.CHOICES_OUTPUTS[0]?.id || '1',
-					choices: self.CHOICES_OUTPUTS,
-				},
-				{
-					type: 'dropdown',
-					label: 'Position',
-					id: 'pos_id',
-					default: self.CHOICES_POSITIONS[0]?.id || 1,
-					choices: self.CHOICES_POSITIONS,
-				},
+				...self.buildOutputPositionFields(self),
 				{
 					type: 'dropdown',
 					label: 'Preset',
@@ -811,7 +1081,13 @@ module.exports = {
 				},
 			],
 			callback: async (action) => {
-				const { output_id, pos_id, preset_no, speed } = action.options
+				const position = self.resolveOutputPosition(self, action.options)
+				if (!position) {
+					self.log('warn', 'Invalid output or position selection')
+					return
+				}
+				const { output_id, pos_id } = position
+				const { preset_no, speed } = action.options
 				const layoutId =
 					self.STATE.output_details?.[String(output_id)]?.layout_id ||
 					parseInt(self.CHOICES_LAYOUTS[0]?.id || 1)

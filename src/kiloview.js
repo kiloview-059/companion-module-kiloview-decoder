@@ -279,8 +279,53 @@ class KiloviewDecoder {
 		return this.post('/output/vumeter/set', params)
 	}
 
-	async getOutputInterfaces(outputId) {
-		return this.get('/output/interfaces/get', { output_id: String(outputId) })
+	async getOutputInterfaces(outputId, type = 'video') {
+		return this.get('/output/interfaces/get', {
+			output_id: String(outputId),
+			type,
+		})
+	}
+
+	async getVideoInterfaces(outputId) {
+		return this.getOutputInterfaces(outputId, 'video')
+	}
+
+	async getAudioInterfaces(outputId) {
+		return this.getOutputInterfaces(outputId, 'audio')
+	}
+
+	async setVideoInterface(outputId, intfId, changes) {
+		const response = await this.getVideoInterfaces(outputId)
+		const intf = (response?.data || []).find((i) => String(i.id) === String(intfId))
+		if (!intf) {
+			const error = new Error(`Video interface ${intfId} not found on output ${outputId}`)
+			error.name = 'KiloviewDecoderError'
+			throw error
+		}
+		return this.post('/output/interfaces/set', {
+			...intf,
+			output_id: String(outputId),
+			type: 'video',
+			intf_id: parseInt(intfId),
+			...changes,
+		})
+	}
+
+	async setAudioInterface(outputId, intfId, changes) {
+		const response = await this.getAudioInterfaces(outputId)
+		const intf = (response?.data || []).find((i) => String(i.id) === String(intfId))
+		if (!intf) {
+			const error = new Error(`Audio interface ${intfId} not found on output ${outputId}`)
+			error.name = 'KiloviewDecoderError'
+			throw error
+		}
+		return this.post('/output/interfaces/set', {
+			...intf,
+			output_id: String(outputId),
+			type: 'audio',
+			intf_id: parseInt(intfId),
+			...changes,
+		})
 	}
 
 	async setOutputInterfaces(params) {
@@ -597,6 +642,39 @@ class KiloviewDecoder {
 				speed: parseFloat(speed),
 			},
 		})
+	}
+
+	parseOutputPosition(compositeId) {
+		const parts = String(compositeId).split(':')
+		if (parts.length !== 2) {
+			return null
+		}
+		return {
+			output_id: parts[0],
+			pos_id: parseInt(parts[1]),
+		}
+	}
+
+	parseOutputLayout(compositeId) {
+		const parts = String(compositeId).split(':')
+		if (parts.length !== 2) {
+			return null
+		}
+		return {
+			output_id: parts[0],
+			layout_id: parts[1],
+		}
+	}
+
+	parseOutputInterface(compositeId) {
+		const parts = String(compositeId).split(':')
+		if (parts.length !== 2) {
+			return null
+		}
+		return {
+			output_id: parts[0],
+			intf_id: parts[1],
+		}
 	}
 }
 

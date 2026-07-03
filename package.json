@@ -1,6 +1,6 @@
 {
 	"name": "kiloview-decoder",
-	"version": "1.0.1",
+	"version": "1.0.3",
 	"main": "index.js",
 	"scripts": {
 		"test": "echo \"Error: no test specified\" && exit 1",
@@ -10,7 +10,7 @@
 	},
 	"license": "MIT",
 	"dependencies": {
-		"@companion-module/base": "^1.12.1"
+		"@companion-module/base": "^1.14.1"
 	},
 	"repository": {
 		"type": "git",

@@ -1,6 +1,6 @@
 # Kiloview Decoder Companion 模块功能说明
 
-> 模块：`companion-module-kiloview-decoder` v1.0.1  
+> 模块：`companion-module-kiloview-decoder` v1.0.2  
 > 适用设备：D350、D260、RD350、RD260（decoder-hi3536 固件）  
 > API 基址：`http://<设备IP>:99/api/`  
 > 参考：`decoder-hi3536/multiview/src/interface/RegistHttpsRoute.cpp`、`decoder-hi3536/api/Dxx解码器Api文档.md`
@@ -91,7 +91,8 @@
 |------|------|
 | Layouts | 每个布局一个切换按钮（带 `currentLayout` 反馈） |
 | Layout | Save Current Layout |
-| Sources | Refresh Sources |
+| Sources | Refresh、NDI 发现、每路流的 Start/Stop/Remove |
+| Output 1/2 Sources | 每窗口 × 每路流的分配按钮（带 streamNameMatch 反馈） |
 | PTZ | Recall PTZ 0–3（默认输出 1、窗口 1、速度 0.5） |
 | System | Refresh Status、Reboot Device |
 
@@ -380,4 +381,4 @@
 
 ---
 
-*文档生成依据模块 v1.0.1 源码与 decoder-hi3536 固件路由，如有固件升级导致 API 变更，以设备实际路由为准。*
+*文档生成依据模块 v1.0.2 源码与 decoder-hi3536 固件路由，如有固件升级导致 API 变更，以设备实际路由为准。*

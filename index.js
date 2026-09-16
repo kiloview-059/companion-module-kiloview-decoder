@@ -2,13 +2,10 @@ const { InstanceBase, runEntrypoint } = require('@companion-module/base')
 const upgrades = require('./src/upgrades')
 
 const config = require('./src/config')
-const actions = require('./src/actions')
-const feedbacks = require('./src/feedbacks')
-const variables = require('./src/variables')
-const presets = require('./src/presets')
-const api = require('./src/api')
 const constants = require('./src/constants')
-const choiceHelpers = require('./src/choiceHelpers')
+const state = require('./src/state')
+const connection = require('./src/polling/connection')
+const definitions = require('./src/definitions')
 
 class KiloviewDecoderInstance extends InstanceBase {
 	constructor(internal) {
@@ -16,14 +13,15 @@ class KiloviewDecoderInstance extends InstanceBase {
 
 		Object.assign(this, {
 			...config,
-			...actions,
-			...feedbacks,
-			...variables,
-			...presets,
-			...api,
 			...constants,
-			...choiceHelpers,
+			...state,
+			...connection,
+			...definitions,
 		})
+
+		// Initialize STATE and CHOICES_* with defaults (like legacy constants.js did)
+		this.resetState()
+		this.resetChoices()
 	}
 
 	async init(config) {
@@ -32,9 +30,7 @@ class KiloviewDecoderInstance extends InstanceBase {
 
 	async destroy() {
 		try {
-			clearInterval(this.INTERVAL)
-			clearInterval(this.INTERVAL_SOURCES)
-			clearTimeout(this.RECONNECT_INTERVAL)
+			this.stopPolling()
 		} catch (error) {
 			this.log('error', 'destroy error:' + error)
 		}
@@ -43,10 +39,11 @@ class KiloviewDecoderInstance extends InstanceBase {
 	async configUpdated(config) {
 		this.config = config
 
-		this.initActions()
-		this.initFeedbacks()
-		this.initVariables()
-		this.initPresets()
+		this.applyProfileDefaults()
+
+		// Pre-register actions/feedbacks/variables/presets so they are visible
+		// even before a successful connection (matches legacy module behavior)
+		this.rebuildDefinitions()
 
 		this.initConnection()
 	}

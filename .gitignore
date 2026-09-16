@@ -1,9 +1,20 @@
+# Dependencies
 node_modules/
-package-lock.json
-.DS_Store
-/pkg
-/pkg.tz
-.yarn/
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+
+# Build output
+dist/
+pkg/
+
+# Tarballs
 *.tgz
 
-yarn-error.log
+# Lockfiles (use yarn without zero-installs)
+package-lock.json
